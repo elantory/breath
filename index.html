@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>브리드 웰 호흡 운동</title>
+    <style>
+        :root {
+            --color-ready: #6c5ce7;
+            --color-inhale: #e74c3c; 
+            --color-exhale: #3498db; 
+            --color-rest: #00b894;   
+        }
+        
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; 
+        }
+        
+        body, html { 
+            width: 100%; 
+            height: 100vh;
+            height: 100dvh; /* 모바일 동적 뷰포트 */
+            overflow: hidden; 
+            background: #000;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #app-container { 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            flex-direction: column;
+            transition: background-color 0.5s ease;
+        }
+
+        /* 초기 설정 화면 */
+        #setup-area { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: flex-start; 
+            align-items: center; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)) 20px;
+            overflow-y: auto;
+            padding-top: max(30px, env(safe-area-inset-top) + 10px);
+        }
+        
+        .setup-header {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #fff;
+            width: 100%;
+        }
+        
+        .setup-header h1 {
+            font-size: clamp(1.8rem, 4.5vw, 2.5rem);
+            font-weight: 900;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+            line-height: 1.3;
+        }
+        
+        .setup-header p {
+            font-size: clamp(1rem, 2.8vw, 1.3rem);
+            font-weight: 600;
+            opacity: 0.95;
+        }
+
+        /* 운동 실행 화면 */
+        #exercise-area { 
+            display: none; 
+            flex: 1; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: space-evenly; /* space-between에서 space-evenly로 변경 */
+            padding: max(15px, env(safe-area-inset-top)) 15px max(15px, env(safe-area-inset-bottom)) 15px;
+            color: #fff;
+        }
+
+        /* 상단 정보 바 */
+        .top-info-bar { 
+            width: 100%; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            padding: 0 5px;
+        }
+        
+        #level-indicator { 
+            font-size: clamp(1.2rem, 4vw, 1.6rem);
+            font-weight: 900; 
+            background: rgba(0,0,0,0.25); 
+            padding: 8px 20px; 
+            border-radius: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        
+        #current-round-banner { 
+            font-size: clamp(1.4rem, 4.5vw, 2rem);
+            font-weight: 900; 
+            background: #FFD93D; 
+            color: #000; 
+            padding: 8px 20px; 
+            border-radius: 25px;
+            box-shadow: 0 4px 15px rgba(255,217,61,0.4);
+        }
+
+        /* 중앙 지시 영역 */
+        .instruction-box { 
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+        
+        #direction-icon { 
+            font-size: clamp(80px, 15vh, 200px);
+            line-height: 1; 
+            display: block;
+            margin-bottom: 15px;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        #action-text { 
+            font-size: clamp(2.8rem, 8vw, 4rem);
+            font-weight: 900; 
+            text-shadow: 3px 3px 12px rgba(0,0,0,0.4);
+            margin-bottom: 10px;
+        }
+
+        /* 원형 타이머 */
+        .circle-wrap { 
+            position: relative; 
+            width: min(40vw, 35vh, 240px);
+            height: min(40vw, 35vh, 240px);
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            margin: 15px 0;
+        }
+        
+        svg { 
+            width: 100%; 
+            height: 100%; 
+            transform: rotate(-90deg); 
+            position: absolute;
+        }
+        
+        #progress-bar { 
+            stroke-width: 20; 
+            transition: stroke-dashoffset 0.1s linear;
+        }
+        
+        #timer-num { 
+            font-size: clamp(3rem, 10vw, 5rem);
+            font-weight: 900; 
+            z-index: 5;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+
+        /* 하단 컨트롤 */
+        .bottom-ui { 
+            width: 100%; 
+            background: rgba(0,0,0,0.25);
+            backdrop-filter: blur(10px);
+            padding: 15px; 
+            border-radius: 25px 25px 0 0;
+        }
+        
+        .round-ctrl { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: clamp(20px, 5vw, 35px);
+            margin-bottom: 12px;
+        }
+        
+        .ctrl-btn { 
+            width: clamp(50px, 12vw, 65px);
+            height: clamp(50px, 12vw, 65px);
+            border-radius: 15px; 
+            border: none; 
+            font-size: clamp(1.8rem, 5vw, 2.2rem);
+            font-weight: 900; 
+            cursor: pointer; 
+            background: #fff; 
+            color: #000;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+        
+        .ctrl-btn:active {
+            transform: scale(0.95);
+        }
+        
+        .round-info {
+            text-align: center;
+            min-width: 100px;
+        }
+        
+        .round-label {
+            color: #eee; 
+            font-size: clamp(0.9rem, 2.5vw, 1.1rem);
+            font-weight: 700;
+            margin-bottom: 3px;
+        }
+        
+        #total-display {
+            font-size: clamp(1.6rem, 4.5vw, 2.2rem);
+            font-weight: 900;
+        }
+
+        .action-btns { 
+            display: flex; 
+            gap: 12px; 
+            width: 100%;
+        }
+        
+        .btn-half { 
+            flex: 1; 
+            height: clamp(55px, 12vw, 70px);
+            border-radius: 18px; 
+            border: none; 
+            font-size: clamp(1.3rem, 3.5vw, 1.6rem);
+            font-weight: 900; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: transform 0.2s;
+        }
+        
+        .btn-half:active {
+            transform: translateY(2px);
+        }
+
+        /* 단계 선택 그리드 */
+        .level-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 15px; 
+            width: 100%; 
+            max-width: 500px;
+            margin-bottom: 30px;
+        }
+        
+        .level-btn { 
+            height: clamp(70px, 15vw, 90px);
+            font-size: clamp(1.2rem, 3.5vw, 1.6rem);
+            font-weight: 900; 
+            border-radius: 18px; 
+            border: none; 
+            cursor: pointer; 
+            background: rgba(255,255,255,0.95);
+            color: #667eea;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+            transition: all 0.3s;
+        }
+        
+        .level-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        
+        .level-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* 안내 박스 */
+        .info-box {
+            background: rgba(255,255,255,0.95);
+            padding: 25px;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            color: #2c3e50;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+        }
+        
+        .info-box h3 {
+            font-size: clamp(1.2rem, 3.5vw, 1.5rem);
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+        
+        .info-box p {
+            font-size: clamp(1rem, 2.8vw, 1.2rem);
+            line-height: 1.7;
+            margin-bottom: 12px;
+        }
+        
+        .info-box strong {
+            color: #e74c3c;
+            font-weight: 800;
+        }
+
+        /* 태블릿 이상 */
+        @media (min-width: 768px) {
+            .level-grid {
+                max-width: 600px;
+            }
+            
+            .info-box {
+                max-width: 600px;
+            }
+        }
+        
+        /* 데스크톱 */
+        @media (min-width: 1024px) {
+            #exercise-area {
+                padding: 30px;
+            }
+            
+            .circle-wrap {
+                width: 280px;
+                height: 280px;
+            }
+            
+            #direction-icon {
+                font-size: 180px;
+            }
+            
+            #action-text {
+                font-size: 4.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-container">
+    <!-- 초기 설정 화면 -->
+    <main id="setup-area">
+        <div class="setup-header">
+            <h1>💨 건강한 호흡 훈련</h1>
+            <p>호흡근 강화 운동</p>
+        </div>
+        
+        <div class="level-grid" id="level-btns"></div>
+        
+        <div class="info-box">
+            <h3>📋 운동 방법</h3>
+            <p><strong>준비:</strong> 기구를 입에 물고 편안하게 앉으세요</p>
+            <p><strong>1단계:</strong> 기구를 통해 <strong>강하게 들이마시기</strong><br>
+               <span style="font-size: 0.95em; color: #666;">※ 저항을 이기며 코와 입으로 깊게 흡입</span></p>
+            <p><strong>2단계:</strong> 기구를 통해 <strong>천천히 끝까지 내쉬기</strong><br>
+               <span style="font-size: 0.95em; color: #666;">※ 저항을 이기며 배에 힘주고 완전히 배출</span></p>
+            <p style="margin-bottom: 0;"><strong>휴식:</strong> 숨고르기 (다음 호흡 준비)</p>
+        </div>
+    </main>
+
+    <!-- 운동 실행 화면 -->
+    <main id="exercise-area">
+        <div class="top-info-bar">
+            <div id="level-indicator">제 1단계</div>
+            <div id="current-round-banner">1회째</div>
+        </div>
+
+        <div class="instruction-box">
+            <span id="direction-icon">✋</span>
+            <h2 id="action-text">준비하세요</h2>
+        </div>
+
+        <div class="circle-wrap">
+            <svg viewBox="0 0 250 250">
+                <circle cx="125" cy="125" r="110" stroke="rgba(255,255,255,0.3)" stroke-width="20" fill="none" />
+                <circle id="progress-bar" cx="125" cy="125" r="110" stroke="#fff" stroke-width="20" fill="none" stroke-dasharray="691" stroke-dashoffset="691" stroke-linecap="round" />
+            </svg>
+            <div id="timer-num">!</div>
+        </div>
+
+        <div class="bottom-ui">
+            <div class="round-ctrl">
+                <button class="ctrl-btn" id="round-minus">−</button>
+                <div class="round-info">
+                    <p class="round-label">목표 횟수</p>
+                    <p id="total-display">5회</p>
+                </div>
+                <button class="ctrl-btn" id="round-plus">+</button>
+            </div>
+            
+            <div class="action-btns">
+                <button id="pause-btn" class="btn-half" style="background: #fff; color: #000;">⏸️ 잠시 멈춤</button>
+                <button id="stop-btn" class="btn-half" style="background: rgba(0,0,0,0.8); color: #fff;">⏹️ 종료</button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+(function() {
+    'use strict';
+    
+    let synth = window.speechSynthesis;
+    let audioCtx;
+    let isPaused = false;
+    let isRunning = false;
+    let currentRunId = 0;
+    let totalRounds = 5;
+    let wakeLock = null;
+    let noSleepInterval = null; // 화면 꺼짐 방지용 인터벌
+
+    // 단계별 설정: [들숨초, 날숨초, 기본횟수]
+    // 파킨슨 환자 권장: 들숨은 짧게, 날숨은 길게 (날숨이 들숨의 1.5~2배)
+    const levelSettings = {
+        // 저강도 구간: 저항값 16, 23, 32
+        1: [3, 5, 5],    // 가장 가벼운 기초 호흡
+        2: [3, 6, 5],    // 1단계보다 날숨을 1초 더 길게 하여 폐활량 유도
+        3: [4, 6, 5],    // 들숨 시간을 늘려 더 깊게 들이마시기 시작
+        
+        // 중강도 구간: 저항값 45, 57, 71
+        4: [4, 6, 10],   
+        5: [4, 7, 10],
+        6: [4, 8, 10],
+        
+        // 고강도 구간: 저항값 80, 92, 154
+        7: [5, 8, 10],   
+        8: [5, 9, 10],
+        9: [6, 10, 10]   // 최대 저항을 뚫고 끝까지 내뱉는 고강도 훈련
+    };
+
+    // 화면 꺼짐 방지
+    async function requestWakeLock() {
+        // 방법 1: Wake Lock API 시도
+        try {
+            if ('wakeLock' in navigator) {
+                wakeLock = await navigator.wakeLock.request('screen');
+                
+                // 화면 재활성화 시 다시 요청
+                document.addEventListener('visibilitychange', async () => {
+                    if (wakeLock !== null && document.visibilityState === 'visible' && isRunning) {
+                        try {
+                            wakeLock = await navigator.wakeLock.request('screen');
+                        } catch (err) {
+                            // 재요청 실패 시 무시
+                        }
+                    }
+                });
+            }
+        } catch (err) {
+            // Wake Lock 실패 시 무시
+        }
+        
+        // 방법 2: 비디오 재생 (Wake Lock 대체)
+        // 보이지 않는 비디오를 반복 재생하여 화면 꺼짐 방지
+        enableNoSleep();
+    }
+    
+    // 화면 꺼짐 방지 - 비디오 재생 방식
+    function enableNoSleep() {
+        // 기존 인터벌 제거
+        if (noSleepInterval) {
+            clearInterval(noSleepInterval);
+        }
+        
+        // 보이지 않는 비디오 엘리먼트 생성
+        let noSleepVideo = document.getElementById('nosleep-video');
+        if (!noSleepVideo) {
+            noSleepVideo = document.createElement('video');
+            noSleepVideo.id = 'nosleep-video';
+            noSleepVideo.setAttribute('playsinline', '');
+            noSleepVideo.setAttribute('webkit-playsinline', '');
+            noSleepVideo.setAttribute('muted', '');
+            noSleepVideo.setAttribute('loop', '');
+            noSleepVideo.style.position = 'fixed';
+            noSleepVideo.style.opacity = '0';
+            noSleepVideo.style.pointerEvents = 'none';
+            noSleepVideo.style.width = '1px';
+            noSleepVideo.style.height = '1px';
+            noSleepVideo.style.zIndex = '-1';
+            
+            // WebM 포맷 비디오 (더 호환성 좋음)
+            noSleepVideo.innerHTML = `
+                <source src="data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQRChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0GGQ2hyb2JlAAAAAAAFlSua8AAAAAAAAb5BgL////////CZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmoCrXsYMPQkBNgIZDaHJvbWVXQYZDaHJvYmUAAAAAAGVc7jB4AjSQAGoQBAxodHRwOi8vd3d3LmNocm9tZS5jb20wAAAAAAEAAAABAAABRIAAAAAAAEDhU////////////////////////////////////////////2QL////////////////////////////////4X///////////////////////////////////+4X/////////////////////////A==" type="video/webm">
+            `;
+            
+            document.body.appendChild(noSleepVideo);
+        }
+        
+        // 비디오 재생 시작
+        const playVideo = () => {
+            if (noSleepVideo && isRunning && !isPaused) {
+                noSleepVideo.play().catch(() => {
+                    // iOS에서는 사용자 제스처 후에만 재생 가능
+                    // 재생 실패 시 무시하고 계속 시도
+                });
+            }
+        };
+        
+        playVideo();
+        
+        // 3초마다 비디오 재생 확인 (더 짧은 간격)
+        noSleepInterval = setInterval(() => {
+            if (noSleepVideo && isRunning && !isPaused) {
+                if (noSleepVideo.paused) {
+                    playVideo();
+                }
+            }
+        }, 3000);
+    }
+    
+    // 화면 꺼짐 방지 해제
+    function disableNoSleep() {
+        if (noSleepInterval) {
+            clearInterval(noSleepInterval);
+            noSleepInterval = null;
+        }
+        
+        const noSleepVideo = document.getElementById('nosleep-video');
+        if (noSleepVideo) {
+            noSleepVideo.pause();
+        }
+    }
+
+    // 비프음 생성
+    function playBeep(frequency, duration) {
+        if (!audioCtx || isPaused) return Promise.resolve();
+        
+        return new Promise((resolve) => {
+            try {
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.frequency.value = frequency;
+                oscillator.type = 'sine';
+                
+                gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration / 1000);
+                
+                oscillator.start(audioCtx.currentTime);
+                oscillator.stop(audioCtx.currentTime + duration / 1000);
+                
+                setTimeout(resolve, duration);
+            } catch (err) {
+                resolve();
+            }
+        });
+    }
+
+    // 음성 안내
+    function speak(text) {
+        if (isPaused) return;
+        
+        try {
+            synth.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'ko-KR';
+            utterance.rate = 0.8;  // 천천히
+            utterance.volume = 0.9;
+            synth.speak(utterance);
+        } catch (err) {
+            // 음성 합성 실패 시 조용히 무시
+        }
+    }
+
+    // 화면 상태 업데이트
+    function updateVisual(state) {
+        const container = document.getElementById('app-container');
+        const icon = document.getElementById('direction-icon');
+        const action = document.getElementById('action-text');
+
+        switch(state) {
+            case 'inhale':
+                container.style.backgroundColor = 'var(--color-inhale)';
+                icon.innerText = '⬆️';
+                action.innerText = '들이마시세요';
+                speak('들이마시세요');
+                break;
+            case 'exhale':
+                container.style.backgroundColor = 'var(--color-exhale)';
+                icon.innerText = '⬇️';
+                action.innerText = '내쉬세요';
+                speak('내쉬세요');
+                break;
+            case 'ready':
+                container.style.backgroundColor = 'var(--color-ready)';
+                icon.innerText = '✋';
+                action.innerText = '준비하세요';
+                speak('호흡 운동을 준비하세요');
+                break;
+            case 'rest':
+                container.style.backgroundColor = 'var(--color-rest)';
+                icon.innerText = '💨';
+                action.innerText = '휴식';
+                speak('휴식');
+                break;
+            case 'complete':
+                container.style.backgroundColor = '#2ecc71';
+                icon.innerText = '🎉';
+                action.innerText = '완료!';
+                speak('오늘 운동을 무사히 마쳤습니다');
+                break;
+        }
+    }
+
+    // 대기 함수
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    // 타이머 실행
+    async function runTimer(seconds, isInhale, runId) {
+        const bar = document.getElementById('progress-bar');
+        const display = document.getElementById('timer-num');
+        let elapsed = 0;
+        const total = seconds * 1000;
+
+        while (elapsed < total) {
+            if (runId !== currentRunId || !isRunning) return false;
+            
+            if (!isPaused) {
+                elapsed += 100;
+                const progress = elapsed / total;
+                bar.style.strokeDashoffset = isInhale ? 691 * (1 - progress) : 691 * progress;
+                display.innerText = Math.ceil((total - elapsed) / 1000);
+            }
+            
+            await sleep(100);
+        }
+        
+        return true;
+    }
+
+    // 운동 시작
+    async function startExercise(inhaleTime, exhaleTime, rounds, level) {
+        // Wake Lock 요청 (화면 꺼짐 방지)
+        await requestWakeLock();
+        
+        // AudioContext 초기화
+        if (!audioCtx) {
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (err) {
+                // AudioContext 생성 실패 시 계속 진행
+            }
+        }
+        
+        if (audioCtx && audioCtx.state === 'suspended') {
+            try {
+                await audioCtx.resume();
+            } catch (err) {
+                // Resume 실패 시 무시
+            }
+        }
+
+        // 실행 ID 증가 (이전 실행 취소용)
+        currentRunId++;
+        const myRunId = currentRunId;
+        
+        isRunning = true;
+        isPaused = false;
+        totalRounds = rounds;
+        
+        // UI 전환
+        document.getElementById('setup-area').style.display = 'none';
+        document.getElementById('exercise-area').style.display = 'flex';
+        document.getElementById('level-indicator').innerText = `제 ${level}단계`;
+        document.getElementById('total-display').innerText = `${totalRounds}회`;
+        
+        // UI 초기화
+        document.getElementById('timer-num').innerText = '!';
+        document.getElementById('progress-bar').style.strokeDashoffset = '691';
+        document.getElementById('current-round-banner').innerText = '1회째';
+        document.getElementById('exercise-area').style.opacity = '1';
+        
+        // 준비 단계
+        updateVisual('ready');
+        await sleep(3000);
+        if (myRunId !== currentRunId) return;
+
+        // 카운트다운
+        for (let i = 3; i > 0; i--) {
+            if (myRunId !== currentRunId) return;
+            while (isPaused) await sleep(100);
+            
+            document.getElementById('timer-num').innerText = i;
+            await playBeep(700, 200);
+            await sleep(1000);
+        }
+
+        // 시작 신호
+        await playBeep(1000, 400);
+        document.getElementById('timer-num').innerText = '!';
+        await sleep(800);
+        if (myRunId !== currentRunId) return;
+
+        // 운동 반복
+        for (let round = 1; round <= totalRounds; round++) {
+            if (myRunId !== currentRunId) return;
+            
+            document.getElementById('current-round-banner').innerText = `${round}회째`;
+            
+            // 들숨
+            updateVisual('inhale');
+            const inhaleCompleted = await runTimer(inhaleTime, true, myRunId);
+            if (!inhaleCompleted || myRunId !== currentRunId) return;
+            
+            // 날숨
+            updateVisual('exhale');
+            const exhaleCompleted = await runTimer(exhaleTime, false, myRunId);
+            if (!exhaleCompleted || myRunId !== currentRunId) return;
+            
+            // 휴식 (마지막 회차 제외)
+            if (round < totalRounds) {
+                updateVisual('rest');
+                document.getElementById('timer-num').innerText = '✓';
+                await sleep(2500);
+            }
+        }
+
+        // 완료
+        if (myRunId === currentRunId && isRunning) {
+            updateVisual('complete');
+            document.getElementById('timer-num').innerText = '🎉';
+            document.getElementById('current-round-banner').innerText = '완료!';
+            
+            // 운동 완료 상태로 변경
+            isRunning = false;
+            
+            // Wake Lock 해제
+            if (wakeLock) {
+                try {
+                    wakeLock.release();
+                } catch (err) {
+                    // 해제 실패 시 무시
+                }
+                wakeLock = null;
+            }
+            
+            // NoSleep 해제
+            disableNoSleep();
+            
+            // 완료 후 버튼 변경
+            const pauseBtn = document.getElementById('pause-btn');
+            pauseBtn.innerHTML = '🔄 다시 시작';
+            pauseBtn.style.background = '#2ecc71';
+            pauseBtn.style.color = '#fff';
+        }
+    }
+
+    // 종료
+    function stopExercise() {
+        isRunning = false;
+        isPaused = false;
+        currentRunId++;
+        synth.cancel();
+        
+        // Wake Lock 해제
+        if (wakeLock) {
+            try {
+                wakeLock.release();
+            } catch (err) {
+                // 해제 실패 시 무시
+            }
+            wakeLock = null;
+        }
+        
+        // NoSleep 해제
+        disableNoSleep();
+        
+        document.getElementById('exercise-area').style.display = 'none';
+        document.getElementById('setup-area').style.display = 'flex';
+        
+        // UI 완전 초기화
+        document.getElementById('timer-num').innerText = '!';
+        document.getElementById('progress-bar').style.strokeDashoffset = '691';
+        document.getElementById('direction-icon').innerText = '✋';
+        document.getElementById('action-text').innerText = '준비하세요';
+        document.getElementById('current-round-banner').innerText = '1회째';
+        document.getElementById('app-container').style.backgroundColor = 'var(--color-ready)';
+        
+        // 버튼 초기화
+        const pauseBtn = document.getElementById('pause-btn');
+        pauseBtn.innerHTML = '⏸️ 잠시 멈춤';
+        pauseBtn.style.background = '#fff';
+        pauseBtn.style.color = '#000';
+        
+        // 화면 투명도 초기화
+        document.getElementById('exercise-area').style.opacity = '1';
+    }
+
+    // 일시정지/재시작
+    function togglePause() {
+        if (!isRunning) {
+            // 완료 후 다시 시작
+            const levelIndicator = document.getElementById('level-indicator').innerText;
+            const levelMatch = levelIndicator.match(/\d+/);
+            if (levelMatch) {
+                const level = parseInt(levelMatch[0]);
+                const [inhale, exhale] = levelSettings[level];
+                
+                // 버튼 먼저 초기화
+                const pauseBtn = document.getElementById('pause-btn');
+                pauseBtn.innerHTML = '⏸️ 잠시 멈춤';
+                pauseBtn.style.background = '#fff';
+                pauseBtn.style.color = '#000';
+                
+                startExercise(inhale, exhale, totalRounds, level);
+            }
+            return;
+        }
+        
+        isPaused = !isPaused;
+        const btn = document.getElementById('pause-btn');
+        const exerciseArea = document.getElementById('exercise-area');
+        
+        if (isPaused) {
+            btn.innerHTML = '▶️ 다시 시작';
+            btn.style.background = '#2ecc71';
+            btn.style.color = '#fff';
+            exerciseArea.style.opacity = '0.5';
+            synth.cancel();
+        } else {
+            btn.innerHTML = '⏸️ 잠시 멈춤';
+            btn.style.background = '#fff';
+            btn.style.color = '#000';
+            exerciseArea.style.opacity = '1';
+        }
+    }
+
+    // 횟수 조절
+    function adjustRounds(delta) {
+        totalRounds = Math.max(1, Math.min(50, totalRounds + delta));
+        document.getElementById('total-display').innerText = `${totalRounds}회`;
+    }
+
+    // 초기화
+    function init() {
+        const grid = document.getElementById('level-btns');
+        const levelNames = [
+            '1단계\n(가장 쉬움)',
+            '2단계',
+            '3단계',
+            '4단계',
+            '5단계\n(보통)',
+            '6단계',
+            '7단계',
+            '8단계',
+            '9단계\n(어려움)'
+        ];
+        
+        for (let i = 1; i <= 9; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'level-btn';
+            btn.innerHTML = levelNames[i - 1].replace('\n', '<br>');
+            btn.onclick = async () => {
+                // AudioContext 사용자 제스처로 활성화
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                }
+                
+                const [inhale, exhale, rounds] = levelSettings[i];
+                totalRounds = rounds;
+                startExercise(inhale, exhale, rounds, i);
+            };
+            grid.appendChild(btn);
+        }
+
+        // 이벤트 리스너
+        document.getElementById('pause-btn').onclick = togglePause;
+        document.getElementById('stop-btn').onclick = stopExercise;
+        document.getElementById('round-plus').onclick = () => adjustRounds(1);
+        document.getElementById('round-minus').onclick = () => adjustRounds(-1);
+
+        // 스페이스바로 일시정지/재시작
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && document.getElementById('exercise-area').style.display === 'flex') {
+                e.preventDefault();
+                togglePause();
+            }
+        });
+    }
+
+    init();
+})();
+</script>
+</body>
+</html>
