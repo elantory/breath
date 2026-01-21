@@ -22,10 +22,15 @@
         body, html { 
             width: 100%; 
             height: 100vh;
-            height: 100dvh; /* 모바일 동적 뷰포트 */
+            height: 100dvh;
             overflow: hidden; 
             background: #000;
             -webkit-font-smoothing: antialiased;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
         }
 
         #app-container { 
@@ -34,6 +39,7 @@
             display: flex; 
             flex-direction: column;
             transition: background-color 0.5s ease;
+            overflow: hidden;
         }
 
         /* 초기 설정 화면 */
@@ -46,6 +52,8 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             padding: max(15px, env(safe-area-inset-top)) 15px max(15px, env(safe-area-inset-bottom)) 15px;
             overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
             padding-top: max(20px, env(safe-area-inset-top) + 10px);
         }
         
@@ -76,7 +84,7 @@
             flex: 1; 
             flex-direction: column; 
             align-items: center; 
-            justify-content: space-evenly; /* space-between에서 space-evenly로 변경 */
+            justify-content: space-evenly;
             padding: max(15px, env(safe-area-inset-top)) 15px max(15px, env(safe-area-inset-bottom)) 15px;
             color: #fff;
         }
@@ -432,57 +440,79 @@
     let currentRunId = 0;
     let totalRounds = 5;
     let wakeLock = null;
-    let noSleepInterval = null; // 화면 꺼짐 방지용 인터벌
+    let noSleepInterval = null;
 
     // 단계별 설정: [들숨초, 날숨초, 기본횟수]
-    // 파킨슨 환자 권장: 들숨은 짧게, 날숨은 길게 (날숨이 들숨의 1.5~2배)
     const levelSettings = {
-        1: [3, 5, 5],    // 초급
+        1: [3, 5, 5],
         2: [3, 6, 5],
         3: [4, 6, 6],
-        4: [4, 7, 6],    // 중급
+        4: [4, 7, 6],
         5: [5, 8, 7],
         6: [5, 9, 8],
-        7: [6, 10, 8],   // 고급
+        7: [6, 10, 8],
         8: [6, 11, 9],
         9: [7, 12, 10]
     };
 
-    // 화면 꺼짐 방지
+    // 화면 꺼짐 방지 - 강화된 방식
     async function requestWakeLock() {
+        console.log('화면 꺼짐 방지 시작');
+        
         // 방법 1: Wake Lock API 시도
         try {
             if ('wakeLock' in navigator) {
                 wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock 활성화 성공');
+                
+                wakeLock.addEventListener('release', () => {
+                    console.log('Wake Lock 해제됨');
+                });
                 
                 // 화면 재활성화 시 다시 요청
                 document.addEventListener('visibilitychange', async () => {
                     if (wakeLock !== null && document.visibilityState === 'visible' && isRunning) {
                         try {
                             wakeLock = await navigator.wakeLock.request('screen');
+                            console.log('Wake Lock 재활성화');
                         } catch (err) {
-                            // 재요청 실패 시 무시
+                            console.log('Wake Lock 재활성화 실패:', err);
                         }
                     }
                 });
+            } else {
+                console.log('Wake Lock API 미지원');
             }
         } catch (err) {
-            // Wake Lock 실패 시 무시
+            console.log('Wake Lock 실패:', err);
         }
         
         // 방법 2: 비디오 재생 (Wake Lock 대체)
-        // 보이지 않는 비디오를 반복 재생하여 화면 꺼짐 방지
         enableNoSleep();
+        
+        // 방법 3: 주기적인 화면 활성화
+        startKeepAwake();
     }
     
-    // 화면 꺼짐 방지 - 비디오 재생 방식
-    function enableNoSleep() {
-        // 기존 인터벌 제거
+    // 화면 활성 상태 유지
+    function startKeepAwake() {
         if (noSleepInterval) {
             clearInterval(noSleepInterval);
         }
         
-        // 보이지 않는 비디오 엘리먼트 생성
+        // 30초마다 더미 이벤트 발생
+        noSleepInterval = setInterval(() => {
+            if (isRunning && !isPaused) {
+                window.scrollTo(0, 0);
+                document.body.style.transform = 'translateZ(0)';
+            }
+        }, 30000);
+    }
+    
+    // 화면 꺼짐 방지 - 비디오 재생 방식
+    function enableNoSleep() {
+        console.log('NoSleep 비디오 활성화');
+        
         let noSleepVideo = document.getElementById('nosleep-video');
         if (!noSleepVideo) {
             noSleepVideo = document.createElement('video');
@@ -498,34 +528,28 @@
             noSleepVideo.style.height = '1px';
             noSleepVideo.style.zIndex = '-1';
             
-            // WebM 포맷 비디오 (더 호환성 좋음)
             noSleepVideo.innerHTML = `
-                <source src="data:video/webm;base64,GkXfo59ChoEBQveBAULygQRC84EIQoKEd2VibUKHgQRChYECGFOAZwH/////////FUmpZpkq17GDD0JATYCGQ2hyb21lV0GGQ2hyb2JlAAAAAAAFlSua8AAAAAAAAb5BgL////////CZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVSalmoCrXsYMPQkBNgIZDaHJvbWVXQYZDaHJvYmUAAAAAAGVc7jB4AjSQAGoQBAxodHRwOi8vd3d3LmNocm9tZS5jb20wAAAAAAEAAAABAAABRIAAAAAAAEDhU////////////////////////////////////////////2QL////////////////////////////////4X///////////////////////////////////+4X/////////////////////////A==" type="video/webm">
+                <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAr1tZGF0AAACrgYF//+q3EXpvebZSLeWLNgg2SPu73gyNjQgLSBjb3JlIDE1MiByMjg1NCBlOWE1OTAzIC0gSC4yNjQvTVBFRy00IEFWQyBjb2RlYyAtIENvcHlsZWZ0IDIwMDMtMjAxNyAtIGh0dHA6Ly93d3cudmlkZW9sYW4ub3JnL3gyNjQuaHRtbCAtIG9wdGlvbnM6IGNhYmFjPTEgcmVmPTMgZGVibG9jaz0xOjA6MCBhbmFseXNlPTB4MzoweDExMyBtZT1oZXggc3VibWU9NyBwc3k9MSBwc3lfcmQ9MS4wMDowLjAwIG1peGVkX3JlZj0xIG1lX3JhbmdlPTE2IGNocm9tYV9tZT0xIHRyZWxsaXM9MSA4eDhkY3Q9MSBjcW09MCBkZWFkem9uZT0yMSwxMSBmYXN0X3Bza2lwPTEgY2hyb21hX3FwX29mZnNldD0tMiB0aHJlYWRzPTEgbG9va2FoZWFkX3RocmVhZHM9MSBzbGljZWRfdGhyZWFkcz0wIG5yPTAgZGVjaW1hdGU9MSBpbnRlcmxhY2VkPTAgYmx1cmF5X2NvbXBhdD0wIGNvbnN0cmFpbmVkX2ludHJhPTAgYmZyYW1lcz0zIGJfcHlyYW1pZD0yIGJfYWRhcHQ9MSBiX2JpYXM9MCBkaXJlY3Q9MSB3ZWlnaHRiPTEgb3Blbl9nb3A9MCB3ZWlnaHRwPTIga2V5aW50PTI1MCBrZXlpbnRfbWluPTEwIHNjZW5lY3V0PTQwIGludHJhX3JlZnJlc2g9MCByY19sb29rYWhlYWQ9NDAgcmM9Y3JmIG1idHJlZT0xIGNyZj0yMy4wIHFjb21wPTAuNjAgcXBtaW49MCBxcG1heD02OSBxcHN0ZXA9NCBpcF9yYXRpbz0xLjQwIGFxPTE6MS4wMACAAAAA8GWIhAAV/y7gAAAHAAADAAADAAADABQAAAMAZABzAwAAAzwAACbwFc12Af8CAwAAAQEAAAEAAA==" type="video/mp4">
             `;
             
             document.body.appendChild(noSleepVideo);
         }
         
-        // 비디오 재생 시작
         const playVideo = () => {
             if (noSleepVideo && isRunning && !isPaused) {
-                noSleepVideo.play().catch(() => {
-                    // iOS에서는 사용자 제스처 후에만 재생 가능
-                    // 재생 실패 시 무시하고 계속 시도
+                noSleepVideo.play().then(() => {
+                    console.log('NoSleep 비디오 재생 중');
+                }).catch((err) => {
+                    console.log('NoSleep 비디오 재생 실패:', err);
+                    setTimeout(playVideo, 1000);
                 });
             }
         };
         
         playVideo();
         
-        // 3초마다 비디오 재생 확인 (더 짧은 간격)
-        noSleepInterval = setInterval(() => {
-            if (noSleepVideo && isRunning && !isPaused) {
-                if (noSleepVideo.paused) {
-                    playVideo();
-                }
-            }
-        }, 3000);
+        noSleepVideo.addEventListener('ended', playVideo);
+        noSleepVideo.addEventListener('pause', playVideo);
     }
     
     // 화면 꺼짐 방지 해제
@@ -577,7 +601,7 @@
             synth.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'ko-KR';
-            utterance.rate = 0.8;  // 천천히
+            utterance.rate = 0.8;
             utterance.volume = 0.9;
             synth.speak(utterance);
         } catch (err) {
@@ -655,7 +679,7 @@
 
     // 운동 시작
     async function startExercise(inhaleTime, exhaleTime, rounds, level) {
-        // Wake Lock 요청 (화면 꺼짐 방지)
+        // Wake Lock 요청
         await requestWakeLock();
         
         // AudioContext 초기화
@@ -675,7 +699,6 @@
             }
         }
 
-        // 실행 ID 증가 (이전 실행 취소용)
         currentRunId++;
         const myRunId = currentRunId;
         
@@ -746,20 +769,16 @@
             document.getElementById('timer-num').innerText = '🎉';
             document.getElementById('current-round-banner').innerText = '완료!';
             
-            // 운동 완료 상태로 변경
             isRunning = false;
             
             // Wake Lock 해제
             if (wakeLock) {
                 try {
                     wakeLock.release();
-                } catch (err) {
-                    // 해제 실패 시 무시
-                }
+                } catch (err) {}
                 wakeLock = null;
             }
             
-            // NoSleep 해제
             disableNoSleep();
             
             // 완료 후 버튼 변경
@@ -777,23 +796,18 @@
         currentRunId++;
         synth.cancel();
         
-        // Wake Lock 해제
         if (wakeLock) {
             try {
                 wakeLock.release();
-            } catch (err) {
-                // 해제 실패 시 무시
-            }
+            } catch (err) {}
             wakeLock = null;
         }
         
-        // NoSleep 해제
         disableNoSleep();
         
         document.getElementById('exercise-area').style.display = 'none';
         document.getElementById('setup-area').style.display = 'flex';
         
-        // UI 완전 초기화
         document.getElementById('timer-num').innerText = '!';
         document.getElementById('progress-bar').style.strokeDashoffset = '691';
         document.getElementById('direction-icon').innerText = '✋';
@@ -801,27 +815,23 @@
         document.getElementById('current-round-banner').innerText = '1회째';
         document.getElementById('app-container').style.backgroundColor = 'var(--color-ready)';
         
-        // 버튼 초기화
         const pauseBtn = document.getElementById('pause-btn');
         pauseBtn.innerHTML = '⏸️ 잠시 멈춤';
         pauseBtn.style.background = '#fff';
         pauseBtn.style.color = '#000';
         
-        // 화면 투명도 초기화
         document.getElementById('exercise-area').style.opacity = '1';
     }
 
     // 일시정지/재시작
     function togglePause() {
         if (!isRunning) {
-            // 완료 후 다시 시작
             const levelIndicator = document.getElementById('level-indicator').innerText;
             const levelMatch = levelIndicator.match(/\d+/);
             if (levelMatch) {
                 const level = parseInt(levelMatch[0]);
                 const [inhale, exhale] = levelSettings[level];
                 
-                // 버튼 먼저 초기화
                 const pauseBtn = document.getElementById('pause-btn');
                 pauseBtn.innerHTML = '⏸️ 잠시 멈춤';
                 pauseBtn.style.background = '#fff';
@@ -876,7 +886,6 @@
             btn.className = 'level-btn';
             btn.innerHTML = levelNames[i - 1].replace('\n', '<br>');
             btn.onclick = async () => {
-                // AudioContext 사용자 제스처로 활성화
                 if (!audioCtx) {
                     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 }
@@ -891,13 +900,11 @@
             grid.appendChild(btn);
         }
 
-        // 이벤트 리스너
         document.getElementById('pause-btn').onclick = togglePause;
         document.getElementById('stop-btn').onclick = stopExercise;
         document.getElementById('round-plus').onclick = () => adjustRounds(1);
         document.getElementById('round-minus').onclick = () => adjustRounds(-1);
 
-        // 스페이스바로 일시정지/재시작
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' && document.getElementById('exercise-area').style.display === 'flex') {
                 e.preventDefault();
@@ -911,6 +918,3 @@
 </script>
 </body>
 </html>
-
-
-
